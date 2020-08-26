@@ -17,19 +17,24 @@
 
 package org.gradle.java.compile
 
-import org.gradle.internal.jvm.Jvm
+import org.gradle.integtests.fixtures.AvailableJavaHomes
 import org.gradle.util.TextUtil
 import spock.lang.IgnoreIf
 
-@IgnoreIf({ !Jvm.current().getExecutable("javac").exists() })
+@IgnoreIf({ !AvailableJavaHomes.differentJdk.getExecutable("javac").exists() })
 class CommandLineJavaCompilerIntegrationTest extends JavaCompilerIntegrationSpec {
+
     def compilerConfiguration() {
-        def javaHome = TextUtil.escapeString(Jvm.current().getJavaHome().getAbsolutePath())
+        def jdk = AvailableJavaHomes.jdk9
+        def javaHome = TextUtil.escapeString(jdk.javaHome.absolutePath)
 
         """
 compileJava.options.with {
     fork = true
     forkOptions.javaHome = file("$javaHome")
+    compilerArgs << '-Xlint:-options' // ignore the missing bootstrap class path
+    sourceCompatibility = JavaVersion.${jdk.javaVersion.name()}
+    targetCompatibility = JavaVersion.${jdk.javaVersion.name()}
 }
 """
     }

@@ -66,8 +66,9 @@ class JavaCompileToolchainIntegrationTest extends AbstractPluginIntegrationTest 
         'current'      | Jvm.current()
     }
 
+    @Requires(adhoc = { AvailableJavaHomes.getJdk(JavaVersion.VERSION_14) != null })
     def "can set explicit toolchain used by JavaCompile"() {
-        def someJdk = AvailableJavaHomes.getDifferentJdk()
+        def someJdk = AvailableJavaHomes.getJdk(JavaVersion.VERSION_14)
         buildFile << """
             apply plugin: "java"
 
@@ -84,6 +85,41 @@ class JavaCompileToolchainIntegrationTest extends AbstractPluginIntegrationTest 
         runWithToolchainConfigured(someJdk)
 
         then:
+        outputDoesNotContain("Compiling with Java command line compiler")
+        outputContains("Compiling with toolchain '${someJdk.javaHome.absolutePath}'.")
+        javaClassFile("Foo.class").exists()
+    }
+
+    // TODO: [BM] this scenario should work using toolchains but the workers seem to be started with the wrong vm
+    @Requires(adhoc = { AvailableJavaHomes.getJdk(JavaVersion.VERSION_1_7) != null })
+    def "can use toolchains to compile java 1.7 code"() {
+        def java16jdk = AvailableJavaHomes.getJdk(JavaVersion.VERSION_1_7)
+        buildFile << """
+            apply plugin: "java"
+
+            java {
+//                sourceCompatibility = JavaVersion.VERSION_1_7
+                toolchain {
+                    languageVersion = JavaVersion.VERSION_1_7
+                }
+            }
+
+//            tasks.withType(AbstractCompile) {
+//                options.with {
+//                    fork = true
+//                    forkOptions.javaHome = file("${java16jdk.getJavaHome()}")
+//                }
+//}
+
+        """
+
+        file("src/main/java/Foo.java") << "public class Foo {}"
+
+        when:
+        runWithToolchainConfigured(java16jdk)
+
+        then:
+        outputContains("Compiling with Java command line compiler")
         outputContains("Compiling with toolchain '${someJdk.javaHome.absolutePath}'.")
         javaClassFile("Foo.class").exists()
     }
